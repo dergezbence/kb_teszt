@@ -1,0 +1,151 @@
+<html>
+
+<head>
+    <style>
+  .img-overlay-wrap {
+        position: relative;
+        display: inline-block; /* <= shrinks container to image size */
+        transition: transform 150ms ease-in-out;
+        margin: 50px 50px;
+      }
+      
+      .img-overlay-wrap img { /* <= optional, for responsiveness */
+         display: block;
+         max-width: 100%;
+         height: auto;
+      }
+      
+      .img-overlay-wrap svg {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    </style>
+</head>
+
+<body>
+    <div id="container" class="img-overlay-wrap"></div>
+
+    <script>
+
+        class Selection {
+
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.node = this._createNode();
+            }
+
+            getNode = ()=> {
+                return this.node;
+            }
+
+            _createNode = ()=> {
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttributeNS(null, 'x', this.x)
+                rect.setAttributeNS(null, 'y',  this.y)
+                rect.setAttributeNS(null,'width', this.width)
+                rect.setAttributeNS(null,'height', this.height)
+                rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
+                return rect;
+            }
+        }
+
+        class ImageLoader {
+
+            constructor(url){
+                this.url = url;
+                this.selections = [];
+                this.container = document.getElementById("container");
+                this.img = null;
+                this.svgCanvas = null;
+            }
+
+            render = () => {
+                this.renderImage();
+                this.renderSvgCanvas();
+            }
+
+            addSelection = (x, y) => {
+                x = x / this.ratio;
+                y = y / this.ratio;
+                let width = 400 / this.ratio;
+                let height = 400 / this.ratio;
+                this.selections.push(new Selection(x, y, width, height));
+                this.renderSelections();
+            }
+
+            renderSelections = ()=> {
+                this.selections.forEach(selection => {
+                    this.svgCanvas.appendChild(selection.getNode());
+                })
+            }
+
+            clearSelections = () => {
+                this.svgCanvas.innerHTML = '';
+            }
+/*
+            renderSingleSelection = (x, y, w, h) => {
+                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                rect.setAttributeNS(null, 'x',x)
+                rect.setAttributeNS(null, 'y',  y)
+                rect.setAttributeNS(null,'width', w)
+                rect.setAttributeNS(null,'height', h)
+                rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
+                this.svgCanvas.appendChild(rect);
+            }
+*/
+            renderImage = () => {
+                this.img = document.createElement('img');
+                this.img.onload = () => {
+                    this.width = this.img.naturalWidth;
+                    this.height = this.img.naturalHeight;
+                    this.ratio = this.img.width / this.width;                 
+                }
+                this.img.src = this.url
+                this.container.appendChild(this.img);
+
+                window.onresize = (e) => {
+                    this.ratio = this.img.width / this.width;
+                    this.clearSelections();
+                    this.renderSelections();
+                }
+            }
+
+            renderSvgCanvas = () => {
+                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                svg.setAttribute('style', 'border: 1px solid black');
+                svg.setAttribute('width', '100%');
+                svg.setAttribute('height', '100%');
+                svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+                svg.oncontextmenu = (e) => {
+                    this.addSelection(e.layerX, e.layerY)
+                }
+                this.svgCanvas = svg;
+                this.container.appendChild(svg);
+            }
+
+        }
+
+
+        var urls = ["https://akcios-ujsag.hu/wp-content/uploads/2021/02/aldi-akcios-ujsag-20210204-0210_Page_01.jpg"];
+
+        urls.forEach(url => {
+            const loader = new ImageLoader(url);
+            loader.render();
+        })
+
+
+    </script>
+  
+
+
+    
+
+    
+
+</body>
+
+</html>
