@@ -30,30 +30,72 @@
 
         class Selection {
 
-            constructor(x, y, width, height) {
+            constructor(x, y, width, height, container) {
                 this.x = x;
                 this.y = y;
                 this.width = width;
                 this.height = height;
+                this.container = container;
                 this.node = this._createNode();
+                this.dragging = false;
+                this.prevMouseEvent = null;
             }
 
             getNode = ()=> {
                 return this.node;
             }
 
+            resizeDisplay = (ratio) =>{
+                const displayX = this.x * ratio;
+                const displayY = this.y * ratio;
+                const displayWidth = this.width * ratio;
+                const displayHeight = this.height * ratio;
+                this.node.setAttributeNS(null, 'x', displayX)
+                this.node.setAttributeNS(null, 'y',  displayY)
+                this.node.setAttributeNS(null,'width', displayWidth)
+                this.node.setAttributeNS(null,'height', displayHeight)
+            }
+
+            _moveByDelta = (deltaX, deltaY) => {
+                const ratio = this.container.getRatio();
+                this.x += deltaX / ratio;
+                this.y += deltaY / ratio;
+                const displayX = this.x * ratio;
+                const displayY = this.y * ratio;
+                this.node.setAttributeNS(null, 'x', displayX)
+                this.node.setAttributeNS(null, 'y',  displayY)
+            }
+
+            _onMouseDown = e => {
+                this.dragging=true;
+                this.prevMouseEvent = e;
+            }
+
+            _onMouseUp = e => {
+                this.dragging=false;
+            }
+
+            _onMouseMove = e => {
+                if(this.dragging){
+                    const deltaX = e.x - this.prevMouseEvent.x;
+                    const deltaY = e.y - this.prevMouseEvent.y;
+                    this.prevMouseEvent = e;
+                    this._moveByDelta(deltaX, deltaY);
+                }
+            }
+
             _createNode = ()=> {
                 const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                rect.setAttributeNS(null, 'x', this.x)
-                rect.setAttributeNS(null, 'y',  this.y)
-                rect.setAttributeNS(null,'width', this.width)
-                rect.setAttributeNS(null,'height', this.height)
                 rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
+                rect.onmousedown = this._onMouseDown;
+                rect.onmouseup = this._onMouseUp;
+                rect.onmouseleave = this._onMouseUp;
+                rect.onmousemove = this._onMouseMove
                 return rect;
             }
         }
 
-        class ImageLoader {
+        class ImageContainer {
 
             constructor(url){
                 this.url = url;
@@ -64,76 +106,82 @@
             }
 
             render = () => {
-                this.renderImage();
-                this.renderSvgCanvas();
+                this._renderImage();
+                this._renderSvgCanvas();
+                this.renderSelections(); //will be removed as by default the selections arent visible
             }
 
-            addSelection = (x, y) => {
-                x = x / this.ratio;
-                y = y / this.ratio;
-                let width = 400 / this.ratio;
-                let height = 400 / this.ratio;
-                this.selections.push(new Selection(x, y, width, height));
-                this.renderSelections();
-            }
-
-            renderSelections = ()=> {
-                this.selections.forEach(selection => {
-                    this.svgCanvas.appendChild(selection.getNode());
-                })
+            renderSelections = () => {
+                this.selections.forEach(this._renderSingleSelection);
             }
 
             clearSelections = () => {
                 this.svgCanvas.innerHTML = '';
             }
-/*
-            renderSingleSelection = (x, y, w, h) => {
-                const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-                rect.setAttributeNS(null, 'x',x)
-                rect.setAttributeNS(null, 'y',  y)
-                rect.setAttributeNS(null,'width', w)
-                rect.setAttributeNS(null,'height', h)
-                rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
-                this.svgCanvas.appendChild(rect);
-            }
-*/
-            renderImage = () => {
-                this.img = document.createElement('img');
-                this.img.onload = () => {
-                    this.width = this.img.naturalWidth;
-                    this.height = this.img.naturalHeight;
-                    this.ratio = this.img.width / this.width;                 
-                }
-                this.img.src = this.url
-                this.container.appendChild(this.img);
 
-                window.onresize = (e) => {
-                    this.ratio = this.img.width / this.width;
-                    this.clearSelections();
-                    this.renderSelections();
-                }
+            getRatio = () => {
+                return this.ratio;
             }
 
-            renderSvgCanvas = () => {
+            _addSelection = (x, y) => {
+                const originalX = x / this.ratio;
+                const originalY = y / this.ratio;
+                const originalWidth = 400 / this.ratio;
+                const originalHeight = 400 / this.ratio;
+                const selection = new Selection(originalX, originalY, originalWidth, originalHeight, this);
+                this.selections.push(selection);
+                this._renderSingleSelection(selection);
+            }
+
+            _resizeSelectionsByRatio = (ratio) => {
+                this.selections.forEach(selection => selection.resizeDisplay(ratio));
+            }
+
+            _renderSingleSelection = (selection) => {
+                selection.resizeDisplay(this.ratio);
+                this.svgCanvas.appendChild(selection.getNode());
+            } 
+
+            _onWindowResize = e => {
+                this.ratio = this.img.width / this.width;
+                this._resizeSelectionsByRatio(this.ratio);
+            }
+
+            _onImageLoad = () => {
+                this.width = this.img.naturalWidth;
+                this.height = this.img.naturalHeight;
+                this.ratio = this.img.width / this.width; 
+            }
+
+            _renderImage = () => {
+                const img = document.createElement('img');
+                img.onload = this._onImageLoad;                 
+                img.src = this.url
+                this.container.appendChild(img);
+                this.img = img;
+                window.onresize = this._onWindowResize
+            }
+
+            _renderSvgCanvas = () => {
                 const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 svg.setAttribute('style', 'border: 1px solid black');
                 svg.setAttribute('width', '100%');
                 svg.setAttribute('height', '100%');
                 svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
                 svg.oncontextmenu = (e) => {
-                    this.addSelection(e.layerX, e.layerY)
+                    this._addSelection(e.layerX, e.layerY)
                 }
                 this.svgCanvas = svg;
                 this.container.appendChild(svg);
             }
-
         }
+
 
 
         var urls = ["https://akcios-ujsag.hu/wp-content/uploads/2021/02/aldi-akcios-ujsag-20210204-0210_Page_01.jpg"];
 
         urls.forEach(url => {
-            const loader = new ImageLoader(url);
+            const loader = new ImageContainer(url);
             loader.render();
         })
 
