@@ -28,8 +28,38 @@
 
     <script>
 
-        class ResizeDot {
+        class Draggable {
+
+            constructor() {
+                this.onDrag = () => {}
+            }
+
+            _onMouseDown = e => {
+                this.dragging=true;
+                this.prevMouseEvent = e;
+            }
+
+            _onMouseUp = e => this.dragging = false;
+
+            _onMouseMove = e => {
+                if(!this.dragging) return;
+                const displayDeltaX = e.x - this.prevMouseEvent.x;
+                const displayDeltaY = e.y - this.prevMouseEvent.y;
+                this._onDrag(displayDeltaX, displayDeltaY);
+                this.prevMouseEvent = e;
+            }
+
+            _setDragCallbacks = htmlNode => {
+                htmlNode.onmousedown = this._onMouseDown;
+                htmlNode.onmouseup = this._onMouseUp;
+                htmlNode.onmouseleave = this._onMouseUp;
+                htmlNode.onmousemove = this._onMouseMove;
+            }
+        }
+
+        class ResizeDot extends Draggable{
             constructor(actualX, actualY, actualRadius) {
+                super();
                 this.actualX = actualX;
                 this.actualY = actualY;
                 this.actualRadius = actualRadius;
@@ -58,34 +88,17 @@
                 this.htmlNode.setAttributeNS(null, 'cy',  displayY);
             }
 
-            _onMouseDown = e => {
-                this.dragging=true;
-                this.prevMouseEvent = e;
-            }
-
-            _onMouseUp = e => this.dragging = false;
-
-            _onMouseMove = e => {
-                if(!this.dragging) return;
-                const displayDeltaX = e.x - this.prevMouseEvent.x;
-                const displayDeltaY = e.y - this.prevMouseEvent.y;
-                this._onDrag(displayDeltaX, displayDeltaY);
-                this.prevMouseEvent = e;
-            }
-
             _createHtmlNode = () => {
                 const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
                 dot.setAttribute('style', "fill:blue;");
-                dot.onmousedown = this._onMouseDown;
-                dot.onmouseup = this._onMouseUp;
-                dot.onmouseleave = this._onMouseUp;
-                dot.onmousemove = this._onMouseMove;
+                this._setDragCallbacks(dot);
                 return dot;
             }
         }
 
-        class SelectionRectangle {
+        class SelectionRectangle extends Draggable {
             constructor(actualX, actualY, width, height) {
+                super();
                 this.actualX = actualX;
                 this.actualY = actualY;
                 this.width = width;
@@ -103,8 +116,8 @@
                 const displayHeight = this.height * ratio;
                 this.htmlNode.setAttributeNS(null, 'x', displayX);
                 this.htmlNode.setAttributeNS(null, 'y',  displayY);
-                this.htmlNode.setAttributeNS(null,'width', displayWidth);
-                this.htmlNode.setAttributeNS(null,'height', displayHeight);
+                this.htmlNode.setAttributeNS(null, 'width', displayWidth);
+                this.htmlNode.setAttributeNS(null, 'height', displayHeight);
             }
 
             moveByDisplayDelta = (displayDeltaX, displayDeltaY, ratio) => {
@@ -118,28 +131,10 @@
                 this.htmlNode.setAttributeNS(null, 'y',  displayY);
             }
 
-            _onMouseDown = e => {
-                this.dragging=true;
-                this.prevMouseEvent = e;
-            }
-
-            _onMouseUp = e => this.dragging = false;
-
-            _onMouseMove = e => {
-                if(!this.dragging) return;
-                const displayDeltaX = e.x - this.prevMouseEvent.x;
-                const displayDeltaY = e.y - this.prevMouseEvent.y;
-                this._onDrag(displayDeltaX, displayDeltaY);
-                this.prevMouseEvent = e;
-            }
-
             _createHtmlNode = () => {
                 const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
-                rect.onmousedown = this._onMouseDown;
-                rect.onmouseup = this._onMouseUp;
-                rect.onmouseleave = this._onMouseUp;
-                rect.onmousemove = this._onMouseMove;
+                this._setDragCallbacks(rect);
                 return rect;
             }
         }
