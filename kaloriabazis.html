@@ -6,7 +6,7 @@
         position: relative;
         display: inline-block; /* <= shrinks container to image size */
         transition: transform 150ms ease-in-out;
-        margin: 50px 50px;
+        margin: auto;
       }
       
       .img-overlay-wrap img { /* <= optional, for responsiveness */
@@ -28,44 +28,32 @@
 
     <script>
 
-        class Draggable {
-
+        class DraggingManager {
             constructor() {
-                this._onDrag = () => {}
+                this.draggingObject = null;
             }
 
-            _onMouseDown = e => {
-                this.dragging=true;
+            onMouseDown = (e, draggingObject) => {
+                this.draggingObject = draggingObject;
                 this.prevMouseEvent = e;
             }
 
-            _onMouseUp = e => {
-                this.dragging = false;
+            onMouseUp = e => {
+                this.draggingObject = null;
             }
 
-            _onMouseMove = e => {
-                if(!this.dragging) return;
+            onMouseMove = e => {
+                if(!this.draggingObject) return;
                 const displayDeltaX = e.x - this.prevMouseEvent.x;
                 const displayDeltaY = e.y - this.prevMouseEvent.y;
-                this._onDrag(displayDeltaX, displayDeltaY);
+                this.draggingObject._onDrag(displayDeltaX, displayDeltaY);
                 this.prevMouseEvent = e;
             }
 
-            _onMouseLeave = e => {
-                //console.log("mouseLeave");
-            }
-
-            _setDragCallbacks = htmlNode => {
-                htmlNode.onmousedown = this._onMouseDown;
-                htmlNode.onmouseup = this._onMouseUp;
-                htmlNode.onmouseleave = this._onMouseUp;
-                htmlNode.onmousemove = this._onMouseMove;
-            }
         }
 
-        class ResizeDot extends Draggable {
+        class ResizeDot {
             constructor(actualX, actualY, actualRadius) {
-                super();
                 this.actualX = actualX;
                 this.actualY = actualY;
                 this.actualRadius = actualRadius;
@@ -97,14 +85,13 @@
             _createHtmlNode = () => {
                 const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
                 dot.setAttribute('style', "fill:blue;");
-                this._setDragCallbacks(dot);
+                dot.onmousedown = e => draggingManager.onMouseDown(e, this);
                 return dot;
             }
         }
 
-        class SelectionRectangle extends Draggable {
+        class SelectionRectangle {
             constructor(actualX, actualY, actualWidth, actualHeight) {
-                super();
                 this.actualX = actualX;
                 this.actualY = actualY;
                 this.actualWidth = actualWidth;
@@ -151,7 +138,7 @@
             _createHtmlNode = () => {
                 const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
                 rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
-                this._setDragCallbacks(rect);
+                rect.onmousedown = e => draggingManager.onMouseDown(e, this);
                 return rect;
             }
         }
@@ -163,6 +150,9 @@
                 this.actualY = actualY;
                 this.actualWidth = actualWidth;
                 this.actualHeight = actualHeight;
+                this.selectionDotSize = 15;
+                this.smallestSelectionWidth = 50;
+                this.smallestSelectionHeight = 50;
                 this.htmlNode = this._createHtmlNode();
                 this.ratio = 1;
             }
@@ -171,66 +161,104 @@
 
             updateDisplayRatio = (ratio) => {
                 this.ratio = ratio;
-                [this.selectionRectangle, ...this.resizeDots].forEach(childElement => childElement.updateDisplayRatio(ratio));
+                this.getChildDelements().forEach(childElement => childElement.updateDisplayRatio(ratio));
             }
 
             moveSelectionByDisplayDelta = (displayDeltaX, displayDeltaY) => {
-                [this.selectionRectangle, ...this.resizeDots].forEach(childElement => 
+                this.getChildDelements().forEach(childElement => 
                     childElement.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio));
+            }
+
+            getResizeDots = () => {
+                return [this.topLeft, this.topRight, this.bottomRight, this.bottomLeft];
+            }
+
+            getChildDelements = () => {
+                return [this.selectionRectangle, ...this.getResizeDots()];
             }
 
             _createHtmlNode = () => {
                 const selectionGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
                 this.selectionRectangle = new SelectionRectangle(this.actualX, this.actualY, this.actualWidth, this.actualHeight);
-                this.selectionRectangle._onDrag = this.moveSelectionByDisplayDelta;
-                this.resizeDots = this._createResizeDots();
-                selectionGroup.appendChild(this.selectionRectangle.getHtmlNode());
-                this.resizeDots.forEach(resizeDot => selectionGroup.appendChild(resizeDot.getHtmlNode()));
+                this._createResizeDots();
+                this.getChildDelements().forEach(childElement => selectionGroup.appendChild(childElement.getHtmlNode()));
+                this._setDragCallbacks();
                 return selectionGroup;
             }
 
-            _onBottomRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
-                this.bottomRight.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-                this.bottomLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
-                this.topRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
-                this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-            }
-
-            _onTopLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
-                this.topLeft.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-                this.topRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
-                this.bottomLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
-                this.selectionRectangle.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-                this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, -displayDeltaY, this.ratio);
-            }
-
-            _onTopRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
-                this.topRight.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-                this.topLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
-                this.bottomRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
-                this.selectionRectangle.moveByDisplayDelta(0, displayDeltaY, this.ratio);
-                this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, -displayDeltaY, this.ratio);
-            }
-
-            _onBottomLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
-                this.bottomLeft.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
-                this.bottomRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
-                this.topLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
-                this.selectionRectangle.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
-                this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, displayDeltaY, this.ratio);
-            }
-
             _createResizeDots = () => {
-                const dotSize = 20;
-                this.topLeft = new ResizeDot(this.actualX, this.actualY, dotSize);
-                this.topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, dotSize);
-                this.bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, dotSize);
-                this.bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, dotSize);
+                this.topLeft = new ResizeDot(this.actualX, this.actualY, this.selectionDotSize);
+                this.topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, this.selectionDotSize);
+                this.bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, this.selectionDotSize);
+                this.bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, this.selectionDotSize);
+            }
+
+            _setDragCallbacks = () => {
+                this.selectionRectangle._onDrag = this.moveSelectionByDisplayDelta;
                 this.bottomRight._onDrag = this._onBottomRightResizeDotMove;
                 this.topLeft._onDrag = this._onTopLeftResizeDotMove;
                 this.topRight._onDrag = this._onTopRightResizeDotMove;
                 this.bottomLeft._onDrag = this._onBottomLeftResizeDotMove;
-                return [this.topLeft, this.topRight, this.bottomRight, this.bottomLeft];
+            }
+
+            _onBottomRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                if( displayDeltaX > 0 || this.selectionRectangle.actualWidth - this.smallestSelectionWidth > displayDeltaX / this.ratio){
+                    this.bottomRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.topRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, 0, this.ratio);
+                }
+                    
+                if( displayDeltaY > 0 || this.selectionRectangle.actualHeight - this.smallestSelectionHeight > displayDeltaY / this.ratio){
+                    this.bottomRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.bottomLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(0, displayDeltaY, this.ratio);
+                }     
+            }
+
+            _onTopLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                if( displayDeltaX < 0 || this.selectionRectangle.actualWidth - this.smallestSelectionWidth > displayDeltaX / this.ratio){
+                    this.topLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.bottomLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, 0, this.ratio);
+                }
+
+                if( displayDeltaY < 0 || this.selectionRectangle.actualHeight - this.smallestSelectionHeight > displayDeltaY / this.ratio){
+                    this.topLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.topRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(0, -displayDeltaY, this.ratio);
+                }
+            }
+
+            _onTopRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                if( displayDeltaX > 0 || this.selectionRectangle.actualWidth - this.smallestSelectionWidth > displayDeltaX / this.ratio){
+                    this.topRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.bottomRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, 0, this.ratio);
+                }
+
+                if( displayDeltaY < 0 || this.selectionRectangle.actualHeight - this.smallestSelectionHeight > displayDeltaY / this.ratio){
+                    this.topRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.topLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(0, -displayDeltaY, this.ratio);
+                }
+            }
+
+            _onBottomLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                if( displayDeltaX < 0 || this.selectionRectangle.actualWidth - this.smallestSelectionWidth > displayDeltaX / this.ratio){
+                    this.bottomLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.topLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, 0, this.ratio);
+                }
+
+                if( displayDeltaY > 0 || this.selectionRectangle.actualHeight - this.smallestSelectionHeight > displayDeltaY / this.ratio){
+                    this.bottomLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.bottomRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                    this.selectionRectangle.resizeByDisplayDelta(0, displayDeltaY, this.ratio);
+                }
             }
         }
 
@@ -241,6 +269,7 @@
                 this.url = url;
                 this.selections = [];
                 this.container = document.getElementById("container");
+               // this.container.onmousemove = () => console.log("mousemoe")
                 this.img = null;
                 this.svgCanvas = null;
             }
@@ -294,6 +323,7 @@
                 img.onload = this._onImageLoad;                 
                 img.src = this.url
                 this.container.appendChild(img);
+
                 this.img = img;
                 window.onresize = this._onWindowResize
             }
@@ -303,6 +333,11 @@
                 svg.setAttribute('style', 'border: 1px solid black');
                 svg.setAttribute('width', '100%');
                 svg.setAttribute('height', '100%');
+
+                svg.onmousemove = draggingManager.onMouseMove;
+                svg.onmouseup = draggingManager.onMouseUp;
+                svg.onmouseleave = draggingManager.onMouseUp;
+
                 svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
                 svg.oncontextmenu = (e) => {
                     this._addSelection(e.layerX, e.layerY)
@@ -316,6 +351,7 @@
 
         var urls = ["https://akcios-ujsag.hu/wp-content/uploads/2021/02/aldi-akcios-ujsag-20210204-0210_Page_01.jpg"];
 
+        var draggingManager = new DraggingManager();
         urls.forEach(url => {
             const loader = new ImageContainer(url);
             loader.render();
