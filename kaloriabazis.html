@@ -31,7 +31,7 @@
         class Draggable {
 
             constructor() {
-                this.onDrag = () => {}
+                this._onDrag = () => {}
             }
 
             _onMouseDown = e => {
@@ -39,7 +39,9 @@
                 this.prevMouseEvent = e;
             }
 
-            _onMouseUp = e => this.dragging = false;
+            _onMouseUp = e => {
+                this.dragging = false;
+            }
 
             _onMouseMove = e => {
                 if(!this.dragging) return;
@@ -47,6 +49,10 @@
                 const displayDeltaY = e.y - this.prevMouseEvent.y;
                 this._onDrag(displayDeltaX, displayDeltaY);
                 this.prevMouseEvent = e;
+            }
+
+            _onMouseLeave = e => {
+                //console.log("mouseLeave");
             }
 
             _setDragCallbacks = htmlNode => {
@@ -57,7 +63,7 @@
             }
         }
 
-        class ResizeDot extends Draggable{
+        class ResizeDot extends Draggable {
             constructor(actualX, actualY, actualRadius) {
                 super();
                 this.actualX = actualX;
@@ -97,12 +103,12 @@
         }
 
         class SelectionRectangle extends Draggable {
-            constructor(actualX, actualY, width, height) {
+            constructor(actualX, actualY, actualWidth, actualHeight) {
                 super();
                 this.actualX = actualX;
                 this.actualY = actualY;
-                this.width = width;
-                this.height = height;
+                this.actualWidth = actualWidth;
+                this.actualHeight = actualHeight;
                 this.htmlNode = this._createHtmlNode();
                 this.onDrag = null;
             }
@@ -112,8 +118,8 @@
             updateDisplayRatio = (ratio) =>{
                 const displayX = this.actualX * ratio;
                 const displayY = this.actualY * ratio;
-                const displayWidth = this.width * ratio;
-                const displayHeight = this.height * ratio;
+                const displayWidth = this.actualWidth * ratio;
+                const displayHeight = this.actualHeight * ratio;
                 this.htmlNode.setAttributeNS(null, 'x', displayX);
                 this.htmlNode.setAttributeNS(null, 'y',  displayY);
                 this.htmlNode.setAttributeNS(null, 'width', displayWidth);
@@ -129,6 +135,17 @@
                 const displayY = this.actualY * ratio;
                 this.htmlNode.setAttributeNS(null, 'x', displayX);
                 this.htmlNode.setAttributeNS(null, 'y',  displayY);
+            }
+
+            resizeByDisplayDelta = (displayDeltaWidth, displayDeltaHeight, ratio) => {
+                const actualDeltaWidth = displayDeltaWidth / ratio;
+                const actualDeltaHeight = displayDeltaHeight / ratio;
+                this.actualWidth += actualDeltaWidth;
+                this.actualHeight += actualDeltaHeight;
+                const displayWidth = this.actualWidth * ratio;
+                const displayHeight = this.actualHeight * ratio;
+                this.htmlNode.setAttributeNS(null, 'width', displayWidth);
+                this.htmlNode.setAttributeNS(null, 'height',  displayHeight);
             }
 
             _createHtmlNode = () => {
@@ -172,12 +189,48 @@
                 return selectionGroup;
             }
 
+            _onBottomRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                this.bottomRight.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+                this.bottomLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                this.topRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+            }
+
+            _onTopLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                this.topLeft.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+                this.topRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                this.bottomLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                this.selectionRectangle.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+                this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, -displayDeltaY, this.ratio);
+            }
+
+            _onTopRightResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                this.topRight.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+                this.topLeft.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                this.bottomRight.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                this.selectionRectangle.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                this.selectionRectangle.resizeByDisplayDelta(displayDeltaX, -displayDeltaY, this.ratio);
+            }
+
+            _onBottomLeftResizeDotMove = (displayDeltaX, displayDeltaY) => {
+                this.bottomLeft.moveByDisplayDelta(displayDeltaX, displayDeltaY, this.ratio);
+                this.bottomRight.moveByDisplayDelta(0, displayDeltaY, this.ratio);
+                this.topLeft.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                this.selectionRectangle.moveByDisplayDelta(displayDeltaX, 0, this.ratio);
+                this.selectionRectangle.resizeByDisplayDelta(-displayDeltaX, displayDeltaY, this.ratio);
+            }
+
             _createResizeDots = () => {
-                const topLeft = new ResizeDot(this.actualX, this.actualY, 10);
-                const topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, 10);
-                const bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, 10);
-                const bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, 10);
-                return [topLeft, topRight, bottomRight, bottomLeft];
+                const dotSize = 20;
+                this.topLeft = new ResizeDot(this.actualX, this.actualY, dotSize);
+                this.topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, dotSize);
+                this.bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, dotSize);
+                this.bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, dotSize);
+                this.bottomRight._onDrag = this._onBottomRightResizeDotMove;
+                this.topLeft._onDrag = this._onTopLeftResizeDotMove;
+                this.topRight._onDrag = this._onTopRightResizeDotMove;
+                this.bottomLeft._onDrag = this._onBottomLeftResizeDotMove;
+                return [this.topLeft, this.topRight, this.bottomRight, this.bottomLeft];
             }
         }
 
