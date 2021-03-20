@@ -1,10 +1,10 @@
-import draggingManager from './dragging_manager'
 
 class ResizeDot {
-    constructor(actualX, actualY, actualRadius) {
+    constructor(actualX, actualY, actualRadius, draggingManager) {
         this.actualX = actualX;
         this.actualY = actualY;
         this.actualRadius = actualRadius;
+        this.draggingManager = draggingManager;
         this.htmlNode = this._createHtmlNode();
     }
 
@@ -33,7 +33,7 @@ class ResizeDot {
     _createHtmlNode = () => {
         const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
         dot.setAttribute('style', "fill:blue;");
-        dot.onmousedown = e => draggingManager.onMouseDown(e, this);
+        dot.onmousedown = e => this.draggingManager.onMouseDown(e, this);
         return dot;
     }
 }

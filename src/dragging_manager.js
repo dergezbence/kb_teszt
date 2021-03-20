@@ -21,5 +21,5 @@ class DraggingManager {
     }
 
 }
-var draggingManager = new DraggingManager();
-export default draggingManager;
+
+export default DraggingManager;

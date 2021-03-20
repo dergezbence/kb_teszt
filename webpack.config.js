@@ -1,13 +1,21 @@
 const path = require('path');
 
 module.exports = {
-    entry: './index.js',
+    entry: './src/index.js',
+
     output: {
         filename: 'bundle.js',
-        path: path.resolve(__dirname, './dist'),
-        publicPath: 'dist/' //puts this as prefix images src tag
+        path: path.resolve(__dirname, 'dist'),
+        publicPath: 'mittomen'
     },
-    mode: 'none',
+
+    mode: 'development',
+    
+    devServer: {
+        contentBase: path.resolve(__dirname, 'dist'),
+        publicPath:"/"
+    },  
+
     module: {
         rules: [
             {
@@ -22,5 +30,6 @@ module.exports = {
                 }
             }
         ]
-    }
+    },
+
 }

@@ -1,11 +1,11 @@
-import draggingManager from './dragging_manager'
 
 class SelectionRectangle {
-    constructor(actualX, actualY, actualWidth, actualHeight) {
+    constructor(actualX, actualY, actualWidth, actualHeight, draggingManager) {
         this.actualX = actualX;
         this.actualY = actualY;
         this.actualWidth = actualWidth;
         this.actualHeight = actualHeight;
+        this.draggingManager = draggingManager;
         this.htmlNode = this._createHtmlNode();
         this.onDrag = null;
     }
@@ -48,7 +48,7 @@ class SelectionRectangle {
     _createHtmlNode = () => {
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         rect.setAttribute('style', "fill:blue;stroke:pink;stroke-width:1;fill-opacity:0.5;stroke-opacity:1");
-        rect.onmousedown = e => draggingManager.onMouseDown(e, this);
+        rect.onmousedown = e => this.draggingManager.onMouseDown(e, this);
         return rect;
     }
 }

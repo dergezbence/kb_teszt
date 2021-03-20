@@ -3,7 +3,7 @@ import ResizeDot from './resize_dot'
 
 class Selection {
 
-    constructor(actualX, actualY, actualWidth, actualHeight) {
+    constructor(actualX, actualY, actualWidth, actualHeight, draggingManager) {
         this.actualX = actualX;
         this.actualY = actualY;
         this.actualWidth = actualWidth;
@@ -11,6 +11,7 @@ class Selection {
         this.selectionDotSize = 15;
         this.smallestSelectionWidth = 50;
         this.smallestSelectionHeight = 50;
+        this.draggingManager = draggingManager;
         this.htmlNode = this._createHtmlNode();
         this.ratio = 1;
     }
@@ -37,7 +38,7 @@ class Selection {
 
     _createHtmlNode = () => {
         const selectionGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        this.selectionRectangle = new SelectionRectangle(this.actualX, this.actualY, this.actualWidth, this.actualHeight);
+        this.selectionRectangle = new SelectionRectangle(this.actualX, this.actualY, this.actualWidth, this.actualHeight, this.draggingManager);
         this._createResizeDots();
         this.getChildDelements().forEach(childElement => selectionGroup.appendChild(childElement.getHtmlNode()));
         this._setDragCallbacks();
@@ -45,10 +46,10 @@ class Selection {
     }
 
     _createResizeDots = () => {
-        this.topLeft = new ResizeDot(this.actualX, this.actualY, this.selectionDotSize);
-        this.topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, this.selectionDotSize);
-        this.bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, this.selectionDotSize);
-        this.bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, this.selectionDotSize);
+        this.topLeft = new ResizeDot(this.actualX, this.actualY, this.selectionDotSize, this.draggingManager);
+        this.topRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY, this.selectionDotSize, this.draggingManager);
+        this.bottomRight = new ResizeDot(this.actualX + this.actualWidth, this.actualY + this.actualHeight, this.selectionDotSize, this.draggingManager);
+        this.bottomLeft = new ResizeDot(this.actualX, this.actualY + this.actualHeight, this.selectionDotSize, this.draggingManager);
     }
 
     _setDragCallbacks = () => {

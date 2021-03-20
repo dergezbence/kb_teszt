@@ -1,12 +1,15 @@
 import Selection from './selection'
-import draggingManager from './dragging_manager'
 
 class ImageContainer {
 
-    constructor(url){
+    constructor(url, draggingManager){
         this.url = url;
         this.selections = [];
-        this.container = document.getElementById("container");
+        this.draggingManager = draggingManager;
+        this.container = document.createElement('div');
+        this.container.style='position: relative';
+        const app = document.getElementById("app");
+        app.appendChild(this.container);
        // this.container.onmousemove = () => console.log("mousemoe")
         this.img = null;
         this.svgCanvas = null;
@@ -31,12 +34,13 @@ class ImageContainer {
         const actualY = displayY / this.ratio;
         const actualWidth = 400.0;
         const actualHeight = 400.0;
-        const selection = new Selection(actualX, actualY, actualWidth, actualHeight);
+        const selection = new Selection(actualX, actualY, actualWidth, actualHeight, this.draggingManager);
         this.selections.push(selection);
         this._renderSingleSelection(selection);
     }
 
     _resizeSelectionsByRatio = (ratio) => {
+        console.log(this.selections)
         this.selections.forEach(selection => selection.updateDisplayRatio(ratio));
     }
 
@@ -72,9 +76,9 @@ class ImageContainer {
         svg.setAttribute('width', '100%');
         svg.setAttribute('height', '100%');
 
-        svg.onmousemove = draggingManager.onMouseMove;
-        svg.onmouseup = draggingManager.onMouseUp;
-        svg.onmouseleave = draggingManager.onMouseUp;
+        svg.onmousemove = this.draggingManager.onMouseMove;
+        svg.onmouseup = this.draggingManager.onMouseUp;
+        svg.onmouseleave = this.draggingManager.onMouseUp;
 
         svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
         svg.oncontextmenu = (e) => {
